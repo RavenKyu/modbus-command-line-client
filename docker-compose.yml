@@ -1,0 +1,17 @@
+version: '3.5'
+services:
+  modbus-command-line-client:
+    image: modubsclc:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: modbus-command-line-client
+
+  dummy-modubs-server:
+    image: modbusclc:latest
+    build:
+      context: .
+      dockerfile: dummy-modbus-server/Dockerfile
+    container_name: dummy-modbus-server
+
+
