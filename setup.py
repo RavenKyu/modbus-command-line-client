@@ -14,7 +14,7 @@ setup(
     description='Modbus Command Line Client',
     url="https://github.com/RavenKyu/modbus-command-line-client",
     license="MIT",
-    keywords="cli",
+    keywords=["cli", "modbus"],
     install_requires=[
         'cliparse',
         'pymodbus',
