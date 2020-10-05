@@ -1,4 +1,5 @@
 # ModbusCLC (Modbus Command Line Client)
+![Python package](https://github.com/RavenKyu/modbus-command-line-client/workflows/Python%20package/badge.svg)
 
 __ModbusCLC__ is simple but useful.
 
