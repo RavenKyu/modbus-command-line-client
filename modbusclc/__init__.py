@@ -66,63 +66,80 @@ def space(string, length):
     return ' '.join(string[i:i + length] for i in range(0, len(string), length))
 
 
+def make_record(index, data, template, first_register, register_size=2):
+    record = list()
+    dt = DataType[template['data_type'].upper()]
+    dt_v = dt.value
+
+    fmt = dt_v['format']
+
+    record.append(dt.name)
+    record.append(first_register + int(data[index][1]))
+    record.append(space(data[index][0], register_size * 2))
+    d = struct.unpack(fmt, bytes.fromhex(data[index][0]))
+    if dt in (DataType.B8_STRING, DataType.B16_STRING, DataType.B32_STRING,
+              DataType.B64_STRING):
+        d = b''.join(d).decode('utf-8')
+    elif dt in (DataType.BIT8,):
+        d = f'{d[0]:07b}'
+    else:
+        d = d[0]
+    record.append(d)
+    record.append(template['note'])
+    return record
+
+
+def get_default_template(data, register_size):
+    data_size = int(len(data) / register_size)
+    data_type = 'B16_UINT'
+    dt = DataType[data_type.upper()]
+    template = itertools.repeat(
+        {'note': '-', 'data_type': dt.name, },
+        data_size)
+    template = list(template)
+    return template
+
+
 ################################################################################
 def get_data_with_template(data: bytes, template, register_size=2,
                            first_register=40000):
     if not template:
-        data_size = int(len(data) / register_size)
-        template = itertools.repeat(
-            {'note': '16 bit unsigned integer', 'data_type': 'B16_UINT', },
-            data_size)
-        template = list(template)
-
+        template = get_default_template(data, register_size)
     n = [DataType[x['data_type']].value['length'] for x in template]
     data = list(chunks(data, n))
 
     result = list()
     for i, t in enumerate(template):
-        record = list()
-        dt = DataType[t['data_type'].upper()]
-        dt_v = dt.value
-
-        fmt = dt_v['format']
-
-        record.append(dt_v['name'])
-        record.append(first_register + int(data[i][1]))
-        record.append(space(data[i][0], register_size * 2))
-        d = struct.unpack(fmt, bytes.fromhex(data[i][0]))
-        if dt in (DataType.B8_STRING, DataType.B16_STRING, DataType.B32_STRING,
-                  DataType.B64_STRING):
-            d = b''.join(d)
-        elif dt in (DataType.BIT8, ):
-            d = f'{d[0]:07b}'
-        else:
-            d = d[0]
-        record.append(d)
-        record.append(t['note'])
-        result.append(record)
+        try:
+            record = make_record(i, data, t, first_register, register_size)
+            result.append(record)
+        except struct.error:
+            note = 'item exists but no data'
+            record = f'{t["data_type"]}|' + (f'{"-":10s}|' * 3) + note
+            result.append(record.split('|'))
+            continue
     return result
 
 
 ################################################################################
 class DataType(enum.Enum):
-    B8_UINT = {'name': '8b uint', 'length': 1, 'format': '>B'}
-    B8_INT = {'name': '8b int', 'length': 1, 'format': '>b'}
-    BIT8 = {'name': '8 bits', 'length': 1, 'format': '>B'}
+    B8_UINT = {'length': 1, 'format': '>B'}
+    B8_INT = {'length': 1, 'format': '>b'}
+    BIT8 = {'length': 1, 'format': '>B'}
 
-    B16_UINT = {'name': '16b uint', 'length': 2, 'format': '>H'}
-    B16_INT = {'name': '16b int', 'length': 2, 'format': '>h'}
-    B32_UINT = {'name': '32b uint', 'length': 4, 'format': '>I'}
-    B32_INT = {'name': '32b int', 'length': 4, 'format': '>i'}
+    B16_UINT = {'length': 2, 'format': '>H'}
+    B16_INT = {'length': 2, 'format': '>h'}
+    B32_UINT = {'length': 4, 'format': '>I'}
+    B32_INT = {'length': 4, 'format': '>i'}
 
-    B16_FLOAT = {'name': '16b float', 'length': 2, 'format': '>e'}
-    B32_FLOAT = {'name': '32b float', 'length': 4, 'format': '>f'}
-    B64_FLOAT = {'name': '64b float', 'length': 8, 'format': '>d'}
+    B16_FLOAT = {'length': 2, 'format': '>e'}
+    B32_FLOAT = {'length': 4, 'format': '>f'}
+    B64_FLOAT = {'length': 8, 'format': '>d'}
 
-    B8_STRING = {'name': '8b sting', 'length': 1, 'format': '>c'}
-    B16_STRING = {'name': '16b sting', 'length': 2, 'format': '>cc'}
-    B32_STRING = {'name': '32b sting', 'length': 4, 'format': '>cccc'}
-    B64_STRING = {'name': '64b sting', 'length': 8, 'format': '>cccccccc'}
+    B8_STRING = {'length': 1, 'format': '>c'}
+    B16_STRING = {'length': 2, 'format': '>cc'}
+    B32_STRING = {'length': 4, 'format': '>cccc'}
+    B64_STRING = {'length': 8, 'format': '>cccccccc'}
 
 
 ################################################################################
@@ -212,9 +229,9 @@ def modbus_request(argspec):
         first_register = 0
     data = get_data_with_template(result.values[1:], template,
                                   first_register=first_register)
-    header = ["data type", "reg", "bytes", "value", "note"]
+    header = ["no", "data type", "reg", "bytes", "value", "note"]
     data.insert(0, header)
-    print(tabulate(data, headers="firstrow"))
+    print(tabulate(data, headers="firstrow", showindex="always"))
 
 
 ################################################################################
