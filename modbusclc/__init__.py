@@ -123,23 +123,23 @@ def get_data_with_template(data: bytes, template, register_size=2,
 
 ################################################################################
 class DataType(enum.Enum):
-    B8_UINT = {'length': 1, 'format': '>B'}
-    B8_INT = {'length': 1, 'format': '>b'}
-    BIT8 = {'length': 1, 'format': '>B'}
+    B8_UINT = {'name': '8b uint', 'length': 1, 'format': '>B'}
+    B8_INT = {'name': '8b int', 'length': 1, 'format': '>b'}
+    BIT8 = {'name': '8 bits bool', 'length': 1, 'format': '>B'}
 
-    B16_UINT = {'length': 2, 'format': '>H'}
-    B16_INT = {'length': 2, 'format': '>h'}
-    B32_UINT = {'length': 4, 'format': '>I'}
-    B32_INT = {'length': 4, 'format': '>i'}
+    B16_UINT = {'name': '16b uint', 'length': 2, 'format': '>H'}
+    B16_INT = {'name': '16b int', 'length': 2, 'format': '>h'}
+    B32_UINT = {'name': '32b uint', 'length': 4, 'format': '>I'}
+    B32_INT = {'name': '32b int', 'length': 4, 'format': '>i'}
 
-    B16_FLOAT = {'length': 2, 'format': '>e'}
-    B32_FLOAT = {'length': 4, 'format': '>f'}
-    B64_FLOAT = {'length': 8, 'format': '>d'}
+    B16_FLOAT = {'name': '16b float', 'length': 2, 'format': '>e'}
+    B32_FLOAT = {'name': '32b float', 'length': 4, 'format': '>f'}
+    B64_FLOAT = {'name': '64b float', 'length': 8, 'format': '>d'}
 
-    B8_STRING = {'length': 1, 'format': '>c'}
-    B16_STRING = {'length': 2, 'format': '>cc'}
-    B32_STRING = {'length': 4, 'format': '>cccc'}
-    B64_STRING = {'length': 8, 'format': '>cccccccc'}
+    B8_STRING = {'name': '8b sting', 'length': 1, 'format': '>c'}
+    B16_STRING = {'name': '16b sting', 'length': 2, 'format': '>cc'}
+    B32_STRING = {'name': '32b sting', 'length': 4, 'format': '>cccc'}
+    B64_STRING = {'name': '64b sting', 'length': 8, 'format': '>cccccccc'}
 
 
 ################################################################################
@@ -219,7 +219,6 @@ def modbus_request(argspec):
         if not result:
             return None
         if isinstance(result, ExceptionResponse):
-            print(result.function_code, result.ExceptionOffset)
             if b'\x01' == result.encode():
                 print('** Error: The function code is not supported')
                 return
