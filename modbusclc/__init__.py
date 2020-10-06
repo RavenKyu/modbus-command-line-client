@@ -6,7 +6,7 @@ import struct
 import itertools
 import datetime
 from tabulate import tabulate
-from pymodbus.pdu import ModbusRequest, ModbusResponse, ModbusExceptions
+from pymodbus.pdu import ModbusRequest, ModbusResponse, ModbusExceptions, ExceptionResponse
 from pymodbus.client.sync import ModbusTcpClient as ModbusClient
 from pymodbus.compat import int2byte
 
@@ -218,8 +218,19 @@ def modbus_request(argspec):
         result = client.execute(request)
         if not result:
             return None
-
-        request_response_messages('respose', result.values,
+        if isinstance(result, ExceptionResponse):
+            print(result.function_code, result.ExceptionOffset)
+            if b'\x01' == result.encode():
+                print('** Error: The function code is not supported')
+                return
+            elif b'\x02' == result.encode():
+                print('** Error: Please check the starting address or starting '
+                      'address + quantity of outputs')
+                return
+            elif b'\x03' == result.encode():
+                print('** Error: 0x01 <= quantity of output <= 0x07d0')
+                return
+        request_response_messages('response', result.values,
                                   f'{argspec.address}:{argspec.port}')
 
     print()
