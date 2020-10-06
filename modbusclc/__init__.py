@@ -18,8 +18,16 @@ def get_template(name):
     try:
         with open('templates.yml', 'r') as f:
             return yaml.safe_load(f)[name]
+    except FileNotFoundError as e:
+        print(f'\n** Error: Template file templates.yml should be '
+              f'in the directory where modbusclc executed.')
+        return None
+    except KeyError as e:
+        print(f'\n** Error: {name} is not in the template. Please Check it ..')
+        return None
     except Exception as e:
-        print(e)
+        import traceback
+        traceback.print_exc()
         return None
 
 
