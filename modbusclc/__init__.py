@@ -5,10 +5,15 @@ import argparse
 import struct
 import itertools
 import datetime
+import functools
 from tabulate import tabulate
-from pymodbus.pdu import ModbusRequest, ModbusResponse, ModbusExceptions, ExceptionResponse
+from pymodbus.pdu import ModbusExceptions
 from pymodbus.client.sync import ModbusTcpClient as ModbusClient
-from pymodbus.compat import int2byte
+
+
+################################################################################
+class ExceptionResponse(Exception):
+    pass
 
 
 ################################################################################
@@ -74,6 +79,7 @@ def space(string, length):
     return ' '.join(string[i:i + length] for i in range(0, len(string), length))
 
 
+################################################################################
 def make_record(index, data, template, first_register, register_size=2):
     record = list()
     dt = DataType[template['data_type'].upper()]
@@ -110,7 +116,7 @@ def get_default_template(data, register_size):
 
 ################################################################################
 def get_data_with_template(data: bytes, template, register_size=2,
-                           first_register=40000):
+                           start_register=40000):
     if not template:
         template = get_default_template(data, register_size)
     n = [DataType[x['data_type']].value['length'] for x in template]
@@ -119,7 +125,7 @@ def get_data_with_template(data: bytes, template, register_size=2,
     result = list()
     for i, t in enumerate(template):
         try:
-            record = make_record(i, data, t, first_register, register_size)
+            record = make_record(i, data, t, start_register, register_size)
             result.append(record)
         except struct.error:
             note = 'item exists but no data'
@@ -151,105 +157,64 @@ class DataType(enum.Enum):
 
 
 ################################################################################
-class CustomModbusResponse(ModbusResponse):
-    function_code = 0x03
-    _rtu_byte_count_pos = 2
-
-    def __init__(self, values=None, **kwargs):
-        ModbusResponse.__init__(self, **kwargs)
-        self.values = values or ''
-
-    def encode(self):
-        """ Encodes response pdu
-
-        :returns: The encoded packet message
-        """
-        result = int2byte(len(self.values) * 2)
-        for register in self.values:
-            result += struct.pack('>H', register)
-        return result
-
-    def decode(self, data):
-        """ Decodes response pdu
-
-        :param data: The packet data to decode
-        """
-        self.values = data
-        return data
-
-
-################################################################################
-class CustomModbusRequest(ModbusRequest):
-    function_code = 0x3
-    _rtu_frame_size = 8
-
-    def __init__(self, address=None, count=2, **kwargs):
-        ModbusRequest.__init__(self, **kwargs)
-        self.address = address
-        self.count = count
-
-    def encode(self):
-        return struct.pack('>HH', self.address, self.count)
-
-    def decode(self, data):
-        self.address, self.count = struct.unpack('>h', data)
-
-    def execute(self, context):
-        if not (1 <= self.count <= 0x7d0):
-            return self.doException(ModbusExceptions.IllegalValue)
-        if not context.validate(self.function_code, self.address, self.count):
-            return self.doException(ModbusExceptions.IllegalAddress)
-        values = context.getValues(self.function_code, self.address,
-                                   self.count)
-        return CustomModbusResponse(values)
-
-
-################################################################################
 def request_response_messages(command, data: bytes, address=''):
     now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     print(f'{now} | {command:8s} | {address:15s} > {data.hex(" ")}')
 
 
 ################################################################################
-def modbus_request(argspec):
-    template = get_template(argspec.template)
-    with ModbusClient(host=argspec.address, port=argspec.port) as client:
-        CustomModbusResponse.function_code = argspec.function_code
-        CustomModbusRequest.function_code = argspec.function_code
+def error_handle(f):
+    @functools.wraps(f)
+    def func(*args, **kwargs):
+        try:
+            return f(*args, **kwargs)
+        except ExceptionResponse as e:
+            print('** Error: ', e)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return
 
-        client.register(CustomModbusResponse)
-        request = CustomModbusRequest(
-            argspec.first_register, unit=argspec.unit_id,
-            count=argspec.count)
+    return func
 
-        request_response_messages('request', request.encode(), get_ip())
-        result = client.execute(request)
-        if not result:
-            return None
-        if isinstance(result, ExceptionResponse):
-            if b'\x01' == result.encode():
-                print('** Error: The function code is not supported')
-                return
-            elif b'\x02' == result.encode():
-                print('** Error: Please check the starting address or starting '
-                      'address + quantity of outputs')
-                return
-            elif b'\x03' == result.encode():
-                print('** Error: 0x01 <= quantity of output <= 0x07d0')
-                return
-        request_response_messages('response', result.values,
-                                  f'{argspec.address}:{argspec.port}')
 
-    print()
-    if argspec.function_code == 0x03:
-        first_register = 40000
-    else:
-        first_register = 0
-    data = get_data_with_template(result.values[1:], template,
-                                  first_register=first_register)
-    header = ["no", "data type", "reg", "bytes", "value", "note"]
-    data.insert(0, header)
-    print(tabulate(data, headers="firstrow", showindex="always"))
+################################################################################
+def print_table(f):
+    @functools.wraps(f)
+    def func(*args, **kwargs):
+        argspec = args[0]
+        start_address = {1: 0, 3: 40000}[argspec.function_code]
+        template = get_template(argspec.template)
+        data = f(*args, **kwargs)
+        data = get_data_with_template(data[1:], template,
+                                      start_register=start_address)
+        header = ["no", "data type", "reg", "bytes", "value", "note"]
+        data.insert(0, header)
+        print(tabulate(data, headers="firstrow", showindex="always"))
+    return func
+
+
+################################################################################
+def response_handle(f):
+    @functools.wraps(f)
+    def func(*args, **kwargs):
+        response = f(*args, **kwargs)
+        data = response.encode()
+        if 1 == len(data):
+            raise ExceptionResponse(
+                ModbusExceptions.decode(int.from_bytes(data, 'big')))
+        return data
+    return func
+
+
+################################################################################
+@error_handle
+@print_table
+@response_handle
+def read_holding_register(argspec):
+    with ModbusClient(host=argspec.host, port=argspec.port) as client:
+        response = client.read_holding_registers(argspec.address, argspec.count)
+    return response
 
 
 ################################################################################
@@ -257,10 +222,17 @@ def argument_parser():
     parent_parser = argparse.ArgumentParser(add_help=False)
     parent_parser.add_argument('-t', '--template', type=str,
                                help='template name', )
-    parent_parser.add_argument('-a', '--address', default='localhost',
+    parent_parser.add_argument('-a', '--host', default='localhost',
                                help='host address')
     parent_parser.add_argument('-p', '--port', type=int, default=502,
                                help='port')
+
+    essential_options_parser = argparse.ArgumentParser(add_help=False)
+    essential_options_parser.add_argument(
+        '-i', '--unit-id', type=int, default=0, help='unit id')
+    essential_options_parser.add_argument(
+        '-f', '--address', type=int, default=0,
+        help='address')
 
     parser = argparse.ArgumentParser(
         prog='',
@@ -271,16 +243,11 @@ def argument_parser():
 
     read_holding_register_parser = sub_parser.add_parser(
         'read_holding_register', help='Setting Command',
-        parents=[parent_parser])
-    read_holding_register_parser.add_argument(
-        '-i', '--unit-id', type=int, default=0, help='unit id')
-    read_holding_register_parser.add_argument(
-        '-f', '--first-register', type=int, default=0,
-        help='first register address')
+        parents=[parent_parser, essential_options_parser])
     read_holding_register_parser.add_argument(
         '-c', '--count', type=int, default=2, help='number of registers')
     read_holding_register_parser.set_defaults(
-        func=modbus_request, function_code=0x03)
+        func=read_holding_register, function_code=0x03)
 
     exit_parser = sub_parser.add_parser('exit', help='Setting Command')
     exit_parser.set_defaults(func=lambda x: exit(0))
