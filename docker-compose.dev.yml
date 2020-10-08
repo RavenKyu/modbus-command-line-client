@@ -17,7 +17,7 @@ services:
     command: |
       /bin/sh start-dev.sh
 
-  dummy-modubs-server:
+  dummy-modbus-server:
     image: dummy-modbus-server:latest
     build:
       context: .

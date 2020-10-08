@@ -249,6 +249,16 @@ def response_handle(f):
 @error_handle
 @print_table
 @response_handle
+def read_input_registers(argspec):
+    with ModbusClient(host=argspec.host, port=argspec.port) as client:
+        response = client.read_input_registers(argspec.address, argspec.count)
+    return response
+
+
+###############################################################################
+@error_handle
+@print_table
+@response_handle
 def read_holding_register(argspec):
     with ModbusClient(host=argspec.host, port=argspec.port) as client:
         response = client.read_holding_registers(argspec.address,
@@ -319,13 +329,17 @@ def argument_parser():
     sub_parser = parser.add_subparsers(dest='sub_parser')
 
     ###########################################################################
+    exit_parser = sub_parser.add_parser('exit', help='Setting Command')
+    exit_parser.set_defaults(func=lambda x: exit(0))
+
+    ###########################################################################
     # Read Coils 0x01
     read_coils_parser = sub_parser.add_parser(
         'read_coils', help='Read Coil(s)',
         parents=[parent_parser, essential_options_parser],
         conflict_handler='resolve')
     read_coils_parser.add_argument(
-        '-a', '--address', type=int, default=0, help='address'),
+        '-a', '--address', type=int, default=1, help='address'),
     read_coils_parser.add_argument(
         '-c', '--count', type=int, default=1, help='number of coils')
     read_coils_parser.set_defaults(
@@ -338,11 +352,11 @@ def argument_parser():
         parents=[parent_parser, essential_options_parser],
         conflict_handler='resolve')
     read_discrete_inputs_parser.add_argument(
-        '-a', '--address', type=int, default=0, help='address'),
+        '-a', '--address', type=int, default=10001, help='address'),
     read_discrete_inputs_parser.add_argument(
         '-c', '--count', type=int, default=1, help='number of coils')
     read_discrete_inputs_parser.set_defaults(
-        func=read_coils, function_code=0x02)
+        func=read_discrete_inputs, function_code=0x02)
 
     ###########################################################################
     # Read Holding Registers 0x03
@@ -357,8 +371,18 @@ def argument_parser():
     read_holding_register_parser.set_defaults(
         func=read_holding_register, function_code=0x03)
 
-    exit_parser = sub_parser.add_parser('exit', help='Setting Command')
-    exit_parser.set_defaults(func=lambda x: exit(0))
+    ###########################################################################
+    # Read Input Registers 0x04
+    read_input_register_parser = sub_parser.add_parser(
+        'read_input_register', help='Setting Command',
+        conflict_handler='resolve',
+        parents=[parent_parser, essential_options_parser])
+    read_input_register_parser.add_argument(
+        '-a', '--address', type=int, default=30001, help='address'),
+    read_input_register_parser.add_argument(
+        '-c', '--count', type=int, default=2, help='number of registers')
+    read_input_register_parser.set_defaults(
+        func=read_input_registers, function_code=0x04)
 
     ###########################################################################
     # Writing Single Coil 0x05
