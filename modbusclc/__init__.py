@@ -260,6 +260,16 @@ def read_holding_register(argspec):
 @error_handle
 @print_table
 @response_handle
+def read_discrete_inputs(argspec):
+    with ModbusClient(host=argspec.host, port=argspec.port) as client:
+        response = client.read_discrete_inputs(argspec.address, argspec.count)
+    return response
+
+
+###############################################################################
+@error_handle
+@print_table
+@response_handle
 def read_coils(argspec):
     with ModbusClient(host=argspec.host, port=argspec.port) as client:
         response = client.read_coils(argspec.address, argspec.count)
@@ -320,6 +330,19 @@ def argument_parser():
         '-c', '--count', type=int, default=1, help='number of coils')
     read_coils_parser.set_defaults(
         func=read_coils, function_code=0x01)
+
+    ###########################################################################
+    # Read Discrete Inputs 0x02
+    read_discrete_inputs_parser = sub_parser.add_parser(
+        'read_discrete_inputs', help='Read Discrete Inputs',
+        parents=[parent_parser, essential_options_parser],
+        conflict_handler='resolve')
+    read_discrete_inputs_parser.add_argument(
+        '-a', '--address', type=int, default=0, help='address'),
+    read_discrete_inputs_parser.add_argument(
+        '-c', '--count', type=int, default=1, help='number of coils')
+    read_discrete_inputs_parser.set_defaults(
+        func=read_coils, function_code=0x02)
 
     ###########################################################################
     # Read Holding Registers 0x03
