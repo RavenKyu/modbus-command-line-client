@@ -226,6 +226,16 @@ def read_coils(argspec):
         response = client.read_coils(argspec.address, argspec.count)
     return response
 
+
+################################################################################
+@error_handle
+@response_handle
+def write_single_coil(argspec):
+    with ModbusClient(host=argspec.host, port=argspec.port) as client:
+        response = client.write_coil(argspec.address, argspec.value)
+    return response
+
+
 ################################################################################
 def argument_parser():
     parent_parser = argparse.ArgumentParser(add_help=False)
@@ -272,5 +282,18 @@ def argument_parser():
 
     exit_parser = sub_parser.add_parser('exit', help='Setting Command')
     exit_parser.set_defaults(func=lambda x: exit(0))
+
+    ############################################################################
+    # Writing Single Coil 0x05
+    write_single_coil_parser = sub_parser.add_parser(
+        'write_single_coil', help='write single Coil',
+        parents=[parent_parser, essential_options_parser])
+    write_single_coil_parser.add_argument(
+        'address', type=int, help='address where the value stores')
+    write_single_coil_parser.add_argument(
+        'value', type=int, choices=[0, 1],
+        help='1/0 boolean.')
+    write_single_coil_parser.set_defaults(
+        func=write_single_coil, function_code=0x05)
 
     return parser
