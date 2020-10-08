@@ -218,6 +218,15 @@ def read_holding_register(argspec):
 
 
 ################################################################################
+@error_handle
+@print_table
+@response_handle
+def read_coils(argspec):
+    with ModbusClient(host=argspec.host, port=argspec.port) as client:
+        response = client.read_coils(argspec.address, argspec.count)
+    return response
+
+################################################################################
 def argument_parser():
     parent_parser = argparse.ArgumentParser(add_help=False)
     parent_parser.add_argument('-t', '--template', type=str,
@@ -241,6 +250,18 @@ def argument_parser():
 
     sub_parser = parser.add_subparsers(dest='sub_parser')
 
+    ############################################################################
+    # Read Coils 0x01
+    read_coils_parser = sub_parser.add_parser(
+        'read_coils', help='Read Coil(s)',
+        parents=[parent_parser, essential_options_parser])
+    read_coils_parser.add_argument(
+        '-c', '--count', type=int, default=2, help='number of coils')
+    read_coils_parser.set_defaults(
+        func=read_coils, function_code=0x01)
+
+    ############################################################################
+    # Read Holding Registers 0x03
     read_holding_register_parser = sub_parser.add_parser(
         'read_holding_register', help='Setting Command',
         parents=[parent_parser, essential_options_parser])

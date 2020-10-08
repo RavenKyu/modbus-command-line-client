@@ -27,7 +27,8 @@ def run_custom_db_server(address, port):
     # ----------------------------------------------------------------------- #
     # initialize your data store
     # ----------------------------------------------------------------------- #
-    block = CustomDataBlock([
+    coil_block = CustomDataBlock([0] * 256)
+    register_block = CustomDataBlock([
         0x556e, 0x6974, 0x3233, 0x2d41,  # 64bit chr Unit23-A
         0xffff,  # 16bit UINT 65535
         0xfc19,  # 16ibt INT -32768
@@ -39,9 +40,9 @@ def run_custom_db_server(address, port):
         0x4107, 0x0e38,  # 32bit Float 8.440971
         0xffff,  # 8bit UINT 0, 8bit int
         0x0007,  # 8bits 0000 0000 0x07,  # 8bits 0000 0111
-
     ])
-    store = ModbusSlaveContext(di=block, co=block, hr=block, ir=block,
+    store = ModbusSlaveContext(di=coil_block, co=coil_block,
+                               hr=register_block, ir=register_block,
                                zero_mode=True)
     context = ModbusServerContext(slaves=store, single=True)
 
