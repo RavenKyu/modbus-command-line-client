@@ -6,6 +6,7 @@ import struct
 import itertools
 import datetime
 import functools
+import re
 from tabulate import tabulate
 from pymodbus.pdu import ModbusExceptions
 from pymodbus.client.sync import ModbusTcpClient as ModbusClient
@@ -37,6 +38,12 @@ class DataType(enum.Enum):
     B32_STRING = {'name': '32b sting', 'length': 4, 'format': '>cccc'}
     B64_STRING = {'name': '64b sting', 'length': 8, 'format': '>cccccccc'}
 
+
+###############################################################################
+def regex_type_0or1(arg_value, pat=re.compile(r"^[0|1]*$")):
+    if not pat.match(arg_value):
+        raise argparse.ArgumentTypeError('The values must be 0 or 1.')
+    return arg_value
 
 ###############################################################################
 def get_template(name):
@@ -269,6 +276,16 @@ def write_single_coil(argspec):
 
 
 ###############################################################################
+@error_handle
+@response_handle
+def write_multiple_coils(argspec):
+    with ModbusClient(host=argspec.host, port=argspec.port) as client:
+        response = client.write_coils(
+            argspec.address, list(map(int, argspec.values)))
+    return response
+
+
+###############################################################################
 def argument_parser():
     parent_parser = argparse.ArgumentParser(add_help=False)
     parent_parser.add_argument('-t', '--template', type=str,
@@ -333,5 +350,18 @@ def argument_parser():
         help='1/0 boolean.')
     write_single_coil_parser.set_defaults(
         func=write_single_coil, function_code=0x05)
+
+    ###########################################################################
+    # Writing Multiple Coils 0x0f
+    write_single_coil_parser = sub_parser.add_parser(
+        'write_multiple_coils', help='writing multiple coils',
+        parents=[parent_parser, essential_options_parser],
+        conflict_handler='resolve')
+    write_single_coil_parser.add_argument(
+        'address', type=int, help='address where the value stores')
+    write_single_coil_parser.add_argument(
+        'values', type=regex_type_0or1, help='1/0 boolean. ex) 01101100')
+    write_single_coil_parser.set_defaults(
+        func=write_multiple_coils, function_code=0x0f)
 
     return parser
