@@ -10,6 +10,7 @@ import re
 from tabulate import tabulate
 from pymodbus.pdu import ModbusExceptions
 from pymodbus.client.sync import ModbusTcpClient as ModbusClient
+from pymodbus.payload import BinaryPayloadBuilder
 
 
 ###############################################################################
@@ -20,14 +21,16 @@ class ExceptionResponse(Exception):
 ###############################################################################
 class DataType(enum.Enum):
     BIT1_BOOLEAN = {'name': '1b boolean', 'length': 1, 'format': '?'}
-    B8_UINT = {'name': '8b uint', 'length': 1, 'format': '>B'}
-    B8_INT = {'name': '8b int', 'length': 1, 'format': '>b'}
     BIT8 = {'name': '8 bits bool', 'length': 1, 'format': '>B'}
 
+    B8_UINT = {'name': '8b uint', 'length': 1, 'format': '>B'}
+    B8_INT = {'name': '8b int', 'length': 1, 'format': '>b'}
     B16_UINT = {'name': '16b uint', 'length': 2, 'format': '>H'}
     B16_INT = {'name': '16b int', 'length': 2, 'format': '>h'}
     B32_UINT = {'name': '32b uint', 'length': 4, 'format': '>I'}
     B32_INT = {'name': '32b int', 'length': 4, 'format': '>i'}
+    B64_UINT = {'name': '64b uint', 'length': 8, 'format': '>Q'}
+    B64_INT = {'name': '64b int', 'length': 8, 'format': '>q'}
 
     B16_FLOAT = {'name': '16b float', 'length': 2, 'format': '>e'}
     B32_FLOAT = {'name': '32b float', 'length': 4, 'format': '>f'}
@@ -40,10 +43,52 @@ class DataType(enum.Enum):
 
 
 ###############################################################################
-def regex_type_0or1(arg_value, pat=re.compile(r"^[0|1]*$")):
+def regex_type_0or1(arg_value, pat=re.compile(r"^[0|1| ]*$")):
     if not pat.match(arg_value):
         raise argparse.ArgumentTypeError('The values must be 0 or 1.')
     return arg_value
+
+
+###############################################################################
+class ActionMultipleTypeValues(argparse.Action):
+    def __init__(
+            self, option_strings, dest, const,
+            nargs=None,
+            default=None,
+            type=None,
+            required=False,
+            help=None,
+            metavar=None):
+        super(ActionMultipleTypeValues, self).__init__(
+            option_strings=option_strings,
+            dest=dest,
+            nargs=nargs,
+            const=const,
+            default=default,
+            type=type,
+            required=required,
+            help=help,
+            metavar=metavar)
+
+    @staticmethod
+    def _copy_items(items):
+        if items is None:
+            return []
+        if type(items) is list:
+            return items[:]
+        import copy
+        return copy.copy(items)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        items = getattr(namespace, self.dest, None)
+        items = ActionMultipleTypeValues._copy_items(items)
+        if 'add_bits' == self.const:
+            values = list(map(int, values.replace(' ', '')))
+            values.reverse()
+
+        items.append((self.const, values))
+        setattr(namespace, self.dest, items)
+
 
 ###############################################################################
 def get_template(name):
@@ -205,6 +250,7 @@ def error_handle(f):
             import traceback
             traceback.print_exc()
             return
+
     return func
 
 
@@ -229,6 +275,7 @@ def print_table(f):
         header = ["no", "data type", "address", "data", "value", "note"]
         data.insert(0, header)
         print(tabulate(data, headers="firstrow", showindex="always"))
+
     return func
 
 
@@ -242,6 +289,7 @@ def response_handle(f):
             raise ExceptionResponse(
                 ModbusExceptions.decode(int.from_bytes(data, 'big')))
         return data
+
     return func
 
 
@@ -306,6 +354,21 @@ def write_multiple_coils(argspec):
 
 
 ###############################################################################
+@error_handle
+@response_handle
+def write_multiple_registers(argspec):
+    builder = BinaryPayloadBuilder()
+    for func, value in argspec.values:
+        getattr(builder, func)(value)
+    payload = builder.build()
+
+    with ModbusClient(host=argspec.host, port=argspec.port) as client:
+        response = client.write_registers(
+            argspec.address, payload, skip_encode=True, unit=argspec.unit_id)
+    return response
+
+
+###############################################################################
 def argument_parser():
     parent_parser = argparse.ArgumentParser(add_help=False)
     parent_parser.add_argument('-t', '--template', type=str,
@@ -318,8 +381,6 @@ def argument_parser():
     essential_options_parser = argparse.ArgumentParser(add_help=False)
     essential_options_parser.add_argument(
         '-i', '--unit-id', type=int, default=0, help='unit id')
-    # essential_options_parser.add_argument(
-    #     '-c', '--count', type=int, default=1, help='number of coils')
 
     parser = argparse.ArgumentParser(
         prog='',
@@ -410,5 +471,60 @@ def argument_parser():
         'values', type=regex_type_0or1, help='1/0 boolean. ex) 01101100')
     write_single_coil_parser.set_defaults(
         func=write_multiple_coils, function_code=0x0f)
+
+    ###########################################################################
+    # Writing Multiple Register 0x10
+    write_multiple_registers_parser = sub_parser.add_parser(
+        'write_multiple_registers', help='writing multiple registers',
+        parents=[parent_parser, essential_options_parser],
+        conflict_handler='resolve')
+    write_multiple_registers_parser.add_argument(
+        'address', type=int, help='address where the value stores')
+
+    write_multiple_registers_parser.add_argument(
+        '--string', dest='values', action=ActionMultipleTypeValues,
+        const='add_string', help='string ex) hello_world or "hello world"')
+    write_multiple_registers_parser.add_argument(
+        '--bits', dest='values', type=regex_type_0or1,
+        action=ActionMultipleTypeValues, const='add_bits',
+        help='bits ex) 1110 => 00001110 or 1111000010101010 or "1111 00 11"')
+    write_multiple_registers_parser.add_argument(
+        '--b8int', dest='values', type=int, action=ActionMultipleTypeValues,
+        const='add_8bit_int')
+    write_multiple_registers_parser.add_argument(
+        '--b8uint', dest='values', type=int, action=ActionMultipleTypeValues,
+        const='add_8bit_uint')
+    write_multiple_registers_parser.add_argument(
+        '--b16int', dest='values', type=int, action=ActionMultipleTypeValues,
+        const='add_16bit_int')
+    write_multiple_registers_parser.add_argument(
+        '--b16uint', dest='values', type=int, action=ActionMultipleTypeValues,
+        const='add_16bit_uint')
+    write_multiple_registers_parser.add_argument(
+        '--b32int', dest='values', type=int, action=ActionMultipleTypeValues,
+        const='add_32bit_int', help='')
+    write_multiple_registers_parser.add_argument(
+        '--b32uint', dest='values', type=int, action=ActionMultipleTypeValues,
+        const='add_32bit_uint', help='')
+    write_multiple_registers_parser.add_argument(
+        '--b64int', dest='values', type=int, action=ActionMultipleTypeValues,
+        const='add_64bit_int', help='')
+    write_multiple_registers_parser.add_argument(
+        '--b64uint', dest='values', type=int, action=ActionMultipleTypeValues,
+        const='add_64bit_uint', help='')
+    write_multiple_registers_parser.add_argument(
+        '--b16float', dest='values', type=float,
+        action=ActionMultipleTypeValues,
+        const='add_16bit_float', help='')
+    write_multiple_registers_parser.add_argument(
+        '--b32float', dest='values', type=float,
+        action=ActionMultipleTypeValues,
+        const='add_32bit_float', help='')
+    write_multiple_registers_parser.add_argument(
+        '--b64float', dest='values', type=float,
+        action=ActionMultipleTypeValues,
+        const='add_64bit_float', help='')
+    write_multiple_registers_parser.set_defaults(
+        func=write_multiple_registers, function_code=0x10)
 
     return parser

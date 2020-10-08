@@ -5,17 +5,20 @@ from pymodbus.datastore import ModbusSequentialDataBlock
 from pymodbus.datastore import ModbusSlaveContext, ModbusServerContext
 
 register_data = [
-    0x556e, 0x6974, 0x3233, 0x2d41,  # 64bit chr Unit23-A
-    0xffff,  # 16bit UINT 65535
-    0xfc19,  # 16ibt INT -32768
-    0xffff, 0xfffa,  # 32bit UINT 4294967290
-    0x8000, 0x0000,  # 32bit INT -2147483648
-    0x437e, 0xe2c6,  # 32bit Float 254.88583
-    0x420a, 0xc326,  # 32bit Float 34.69057
-    0x427d, 0x7aeb,  # 32bit Float 63.37004
-    0x4107, 0x0e38,  # 32bit Float 8.440971
-    0xffff,  # 8bit UINT 0, 8bit int
-    0x0007,  # 8bits 0000 0000 0x07,  # 8bits 0000 0111
+    0x7765, 0x6c63, 0x6f6d, 0x6521,  # 64bit string welcome!
+    0x4142, 0x4344,  # 32bit string ABCD
+    0x4546,  # 16bit string EF
+    0x4748,  # 8bit string G H
+    0xab54, 0xa98c, 0xeb1f, 0x0ad2,  # 64bit unsigned int
+    0xeedd, 0xef0b, 0x8216, 0x7eeb,  # 64bit int
+    0x4996, 0x02d2,  # 32bit unsigned integer
+    0xb669, 0xfd2e,  # 32bit integer
+    0x3039,  # 16bit unsigned integer
+    0xcfc7,  # 16bit integer
+    0x7b85,  # 8bit unsigned integer, integer
+    0x419d, 0x6f34, 0x540c, 0xa458,  # 64bit float
+    0x4b3c, 0x614e,  # 32bit float
+    0x64d2,  # 16bit float
 ]
 
 
