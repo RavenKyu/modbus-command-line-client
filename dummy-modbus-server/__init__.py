@@ -1,34 +1,16 @@
 import argparse
 from pymodbus.server.asynchronous import StartTcpServer
 from pymodbus.device import ModbusDeviceIdentification
-from pymodbus.datastore import ModbusSparseDataBlock
+from pymodbus.datastore import ModbusSequentialDataBlock
 from pymodbus.datastore import ModbusSlaveContext, ModbusServerContext
-from pymodbus.transaction import ModbusRtuFramer, ModbusAsciiFramer
-
-
-class CustomDataBlock(ModbusSparseDataBlock):
-
-    def setValues(self, address, value):
-        """ Sets the requested values of the datastore
-
-        :param address: The starting address
-        :param values: The new values to be set
-        """
-        super(CustomDataBlock, self).setValues(address, value)
-
-        # whatever you want to do with the written value is done here,
-        # however make sure not to do too much work here or it will
-        # block the server, espectially if the server is being written
-        # to very quickly
-        print("wrote {} to {}".format(value, address))
 
 
 def run_custom_db_server(address, port):
     # ----------------------------------------------------------------------- #
     # initialize your data store
     # ----------------------------------------------------------------------- #
-    coil_block = CustomDataBlock([0] * 256)
-    register_block = CustomDataBlock([
+    coil_block = ModbusSequentialDataBlock(0, [0] * 256)
+    register_block = ModbusSequentialDataBlock(40001, [
         0x556e, 0x6974, 0x3233, 0x2d41,  # 64bit chr Unit23-A
         0xffff,  # 16bit UINT 65535
         0xfc19,  # 16ibt INT -32768
