@@ -11,6 +11,7 @@ from tabulate import tabulate
 from pymodbus.pdu import ModbusExceptions
 from pymodbus.client.sync import ModbusTcpClient as ModbusClient
 from pymodbus.payload import BinaryPayloadBuilder
+from pymodbus.constants import Endian
 
 
 ###############################################################################
@@ -356,8 +357,23 @@ def write_multiple_coils(argspec):
 ###############################################################################
 @error_handle
 @response_handle
+def write_single_register(argspec):
+    builder = BinaryPayloadBuilder(byteorder=Endian.Big, wordorder=Endian.Big)
+    for func, value in argspec.values[:1]:
+        getattr(builder, func)(value)
+    payload = builder.build()
+    with ModbusClient(host=argspec.host, port=argspec.port) as client:
+        response = client.write_register(
+            argspec.address, payload[0], skip_encode=True,
+            unit=argspec.unit_id)
+    return response
+
+
+###############################################################################
+@error_handle
+@response_handle
 def write_multiple_registers(argspec):
-    builder = BinaryPayloadBuilder()
+    builder = BinaryPayloadBuilder(byteorder=Endian.Big, wordorder=Endian.Big)
     for func, value in argspec.values:
         getattr(builder, func)(value)
     payload = builder.build()
@@ -378,10 +394,65 @@ def argument_parser():
     parent_parser.add_argument('--port', type=int, default=502,
                                help='port')
 
+    ###########################################################################
     essential_options_parser = argparse.ArgumentParser(add_help=False)
     essential_options_parser.add_argument(
         '-i', '--unit-id', type=int, default=0, help='unit id')
 
+    ###########################################################################
+    single_register_data_type_parser = argparse.ArgumentParser(add_help=False)
+    single_register_data_type_parser.add_argument(
+        '--string', dest='values', action=ActionMultipleTypeValues,
+        const='add_string', help='string ex) hello_world or "hello world"')
+    single_register_data_type_parser.add_argument(
+        '--b16int', dest='values', type=int, action=ActionMultipleTypeValues,
+        const='add_16bit_int')
+    single_register_data_type_parser.add_argument(
+        '--b16uint', dest='values', type=int, action=ActionMultipleTypeValues,
+        const='add_16bit_uint')
+    single_register_data_type_parser.add_argument(
+        '--b16float', dest='values', type=float,
+        action=ActionMultipleTypeValues,
+        const='add_16bit_float', help='')
+
+    ###########################################################################
+    multiple_register_data_type_parser = argparse.ArgumentParser(
+        add_help=False)
+    multiple_register_data_type_parser.add_argument(
+        '--string', dest='values', action=ActionMultipleTypeValues,
+        const='add_string', help='string ex) hello_world or "hello world"')
+    multiple_register_data_type_parser.add_argument(
+        '--bits', dest='values', type=regex_type_0or1,
+        action=ActionMultipleTypeValues, const='add_bits',
+        help='bits ex) 1110 => 00001110 or 1111000010101010 or "1111 00 11"')
+    multiple_register_data_type_parser.add_argument(
+        '--b8int', dest='values', type=int, action=ActionMultipleTypeValues,
+        const='add_8bit_int')
+    multiple_register_data_type_parser.add_argument(
+        '--b8uint', dest='values', type=int, action=ActionMultipleTypeValues,
+        const='add_8bit_uint')
+    multiple_register_data_type_parser.add_argument(
+        '--b32int', dest='values', type=int, action=ActionMultipleTypeValues,
+        const='add_32bit_int', help='')
+    multiple_register_data_type_parser.add_argument(
+        '--b32uint', dest='values', type=int, action=ActionMultipleTypeValues,
+        const='add_32bit_uint', help='')
+    multiple_register_data_type_parser.add_argument(
+        '--b64int', dest='values', type=int, action=ActionMultipleTypeValues,
+        const='add_64bit_int', help='')
+    multiple_register_data_type_parser.add_argument(
+        '--b64uint', dest='values', type=int, action=ActionMultipleTypeValues,
+        const='add_64bit_uint', help='')
+    multiple_register_data_type_parser.add_argument(
+        '--b32float', dest='values', type=float,
+        action=ActionMultipleTypeValues,
+        const='add_32bit_float', help='')
+    multiple_register_data_type_parser.add_argument(
+        '--b64float', dest='values', type=float,
+        action=ActionMultipleTypeValues,
+        const='add_64bit_float', help='')
+
+    ###########################################################################
     parser = argparse.ArgumentParser(
         prog='',
         description='description',
@@ -460,6 +531,18 @@ def argument_parser():
         func=write_single_coil, function_code=0x05)
 
     ###########################################################################
+    # Writing Single Register 0x06
+    write_single_registers_parser = sub_parser.add_parser(
+        'write_single_register', help='writing single register',
+        parents=[parent_parser, essential_options_parser,
+                 single_register_data_type_parser],
+        conflict_handler='resolve')
+    write_single_registers_parser.add_argument(
+        'address', type=int, help='address where the value stores')
+    write_single_registers_parser.set_defaults(
+        func=write_single_register, function_code=0x06)
+
+    ###########################################################################
     # Writing Multiple Coils 0x0f
     write_single_coil_parser = sub_parser.add_parser(
         'write_multiple_coils', help='writing multiple coils',
@@ -476,54 +559,12 @@ def argument_parser():
     # Writing Multiple Register 0x10
     write_multiple_registers_parser = sub_parser.add_parser(
         'write_multiple_registers', help='writing multiple registers',
-        parents=[parent_parser, essential_options_parser],
+        parents=[parent_parser, essential_options_parser,
+                 multiple_register_data_type_parser,
+                 single_register_data_type_parser],
         conflict_handler='resolve')
     write_multiple_registers_parser.add_argument(
         'address', type=int, help='address where the value stores')
-
-    write_multiple_registers_parser.add_argument(
-        '--string', dest='values', action=ActionMultipleTypeValues,
-        const='add_string', help='string ex) hello_world or "hello world"')
-    write_multiple_registers_parser.add_argument(
-        '--bits', dest='values', type=regex_type_0or1,
-        action=ActionMultipleTypeValues, const='add_bits',
-        help='bits ex) 1110 => 00001110 or 1111000010101010 or "1111 00 11"')
-    write_multiple_registers_parser.add_argument(
-        '--b8int', dest='values', type=int, action=ActionMultipleTypeValues,
-        const='add_8bit_int')
-    write_multiple_registers_parser.add_argument(
-        '--b8uint', dest='values', type=int, action=ActionMultipleTypeValues,
-        const='add_8bit_uint')
-    write_multiple_registers_parser.add_argument(
-        '--b16int', dest='values', type=int, action=ActionMultipleTypeValues,
-        const='add_16bit_int')
-    write_multiple_registers_parser.add_argument(
-        '--b16uint', dest='values', type=int, action=ActionMultipleTypeValues,
-        const='add_16bit_uint')
-    write_multiple_registers_parser.add_argument(
-        '--b32int', dest='values', type=int, action=ActionMultipleTypeValues,
-        const='add_32bit_int', help='')
-    write_multiple_registers_parser.add_argument(
-        '--b32uint', dest='values', type=int, action=ActionMultipleTypeValues,
-        const='add_32bit_uint', help='')
-    write_multiple_registers_parser.add_argument(
-        '--b64int', dest='values', type=int, action=ActionMultipleTypeValues,
-        const='add_64bit_int', help='')
-    write_multiple_registers_parser.add_argument(
-        '--b64uint', dest='values', type=int, action=ActionMultipleTypeValues,
-        const='add_64bit_uint', help='')
-    write_multiple_registers_parser.add_argument(
-        '--b16float', dest='values', type=float,
-        action=ActionMultipleTypeValues,
-        const='add_16bit_float', help='')
-    write_multiple_registers_parser.add_argument(
-        '--b32float', dest='values', type=float,
-        action=ActionMultipleTypeValues,
-        const='add_32bit_float', help='')
-    write_multiple_registers_parser.add_argument(
-        '--b64float', dest='values', type=float,
-        action=ActionMultipleTypeValues,
-        const='add_64bit_float', help='')
     write_multiple_registers_parser.set_defaults(
         func=write_multiple_registers, function_code=0x10)
 
