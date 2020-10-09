@@ -10,15 +10,16 @@ import functools
 import re
 import pathlib
 import operator
+
 from tabulate import tabulate
 from pymodbus.pdu import ModbusExceptions
 from pymodbus.client.sync import ModbusTcpClient as ModbusClient
 from pymodbus.payload import BinaryPayloadBuilder
 from pymodbus.constants import Endian
+from pymodbus import exceptions
 
 
 ###############################################################################
-
 class Config(dict):
     HOME_PATH = pathlib.Path.home() / '.config' / 'modbusclc'
     CONFIG_FILE = HOME_PATH / 'config.yml'
@@ -332,6 +333,8 @@ def error_handle(f):
     def func(*args, **kwargs):
         try:
             return f(*args, **kwargs)
+        except exceptions.ConnectionException as e:
+            print('** Error: ', e)
         except ExceptionResponse as e:
             print('** Error: ', e)
         except Exception:
