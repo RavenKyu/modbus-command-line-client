@@ -8,11 +8,89 @@ import itertools
 import datetime
 import functools
 import re
+import pathlib
+import operator
 from tabulate import tabulate
 from pymodbus.pdu import ModbusExceptions
 from pymodbus.client.sync import ModbusTcpClient as ModbusClient
 from pymodbus.payload import BinaryPayloadBuilder
 from pymodbus.constants import Endian
+
+
+###############################################################################
+
+class Config(dict):
+    HOME_PATH = pathlib.Path.home() / '.config' / 'modbusclc'
+    CONFIG_FILE = HOME_PATH / 'config.yml'
+    TEMPLATES_FILE = HOME_PATH / 'templates.yml'
+    _instance = None
+
+    def __init__(self, config_filepath=None, **kwargs):
+        dict.__init__(self, **kwargs)
+        if not config_filepath:
+            config_filepath = Config.CONFIG_FILE.absolute()
+        self._config_filepath = pathlib.Path(config_filepath)
+        if not self.get_config():
+            raise ValueError('config error')
+
+    @classmethod
+    def get_instance(cls):
+        if not cls._instance:
+            cls._instance = Config()
+        return cls._instance
+
+    @staticmethod
+    def set_prompt(prompt):
+        with open('prompt', 'w') as f:
+            print(prompt)
+            f.write(prompt)
+
+    def new_config_merge(self, config_list: list):
+        new_config = dict()
+        for conf in config_list:
+            new_config.update(conf)
+        return {**self['setting'], **new_config}
+
+    def set_default_config(self):
+        if 'setting' not in self:
+            self['setting'] = dict()
+        hosts = {'ip': '127.0.0.1', 'port': 502}
+        self['setting'] = self.new_config_merge([hosts])
+
+        self._config_filepath.parent.mkdir(exist_ok=True)
+        self._config_filepath.touch()
+        with self._config_filepath.open('w') as f:
+            f.write(yaml.dump(self['setting']))
+        return self._config_filepath.absolute()
+
+    def get_config(self):
+        # if not exist, saving a new config file with the default setting
+        if not self._config_filepath.exists():
+            self.set_default_config()
+        with self._config_filepath.open('r') as f:
+            self['setting'] = yaml.safe_load(f)
+        return self
+
+    def save(self):
+        with self._config_filepath.open('w') as f:
+            f.write(yaml.dump(self['setting']))
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_tb:
+            import traceback
+            traceback.print_exception(exc_type,exc_val, exc_tb)
+            return
+        self.save()
+
+    def itemgetter(self, *args):
+        self.get_config()
+        return operator.itemgetter(*args)(self['setting'])
+
+
+CONF = Config()
 
 
 ###############################################################################
@@ -308,7 +386,8 @@ def response_handle(f):
 @print_table
 @response_handle
 def read_input_registers(argspec):
-    with ModbusClient(host=argspec.host, port=argspec.port) as client:
+    ip, port = CONF.itemgetter('ip', 'port')
+    with ModbusClient(host=ip, port=port) as client:
         response = client.read_input_registers(argspec.address, argspec.count)
     return response
 
@@ -318,7 +397,8 @@ def read_input_registers(argspec):
 @print_table
 @response_handle
 def read_holding_register(argspec):
-    with ModbusClient(host=argspec.host, port=argspec.port) as client:
+    ip, port = CONF.itemgetter('ip', 'port')
+    with ModbusClient(host=ip, port=port) as client:
         response = client.read_holding_registers(argspec.address,
                                                  argspec.count)
     return response
@@ -329,7 +409,8 @@ def read_holding_register(argspec):
 @print_table
 @response_handle
 def read_discrete_inputs(argspec):
-    with ModbusClient(host=argspec.host, port=argspec.port) as client:
+    ip, port = CONF.itemgetter('ip', 'port')
+    with ModbusClient(host=ip, port=port) as client:
         response = client.read_discrete_inputs(argspec.address, argspec.count)
     return response
 
@@ -339,7 +420,8 @@ def read_discrete_inputs(argspec):
 @print_table
 @response_handle
 def read_coils(argspec):
-    with ModbusClient(host=argspec.host, port=argspec.port) as client:
+    ip, port = CONF.itemgetter('ip', 'port')
+    with ModbusClient(host=ip, port=port) as client:
         response = client.read_coils(argspec.address, argspec.count)
     return response
 
@@ -348,7 +430,8 @@ def read_coils(argspec):
 @error_handle
 @response_handle
 def write_single_coil(argspec):
-    with ModbusClient(host=argspec.host, port=argspec.port) as client:
+    ip, port = CONF.itemgetter('ip', 'port')
+    with ModbusClient(host=ip, port=port) as client:
         response = client.write_coil(argspec.address, argspec.value)
     return response
 
@@ -357,7 +440,8 @@ def write_single_coil(argspec):
 @error_handle
 @response_handle
 def write_multiple_coils(argspec):
-    with ModbusClient(host=argspec.host, port=argspec.port) as client:
+    ip, port = CONF.itemgetter('ip', 'port')
+    with ModbusClient(host=ip, port=port) as client:
         response = client.write_coils(
             argspec.address, list(map(int, argspec.values)))
     return response
@@ -371,7 +455,9 @@ def write_single_register(argspec):
     for func, value in argspec.values[:1]:
         getattr(builder, func)(value)
     payload = builder.build()
-    with ModbusClient(host=argspec.host, port=argspec.port) as client:
+
+    ip, port = CONF.itemgetter('ip', 'port')
+    with ModbusClient(host=ip, port=port) as client:
         response = client.write_register(
             argspec.address, payload[0], skip_encode=True,
             unit=argspec.unit_id)
@@ -387,10 +473,20 @@ def write_multiple_registers(argspec):
         getattr(builder, func)(value)
     payload = builder.build()
 
-    with ModbusClient(host=argspec.host, port=argspec.port) as client:
+    ip, port = CONF.itemgetter('ip', 'port')
+    with ModbusClient(host=ip, port=port) as client:
         response = client.write_registers(
             argspec.address, payload, skip_encode=True, unit=argspec.unit_id)
     return response
+
+
+###############################################################################
+def setting(argspec):
+    with Config() as config:
+        config['setting']['ip'] = argspec.ip
+        config['setting']['port'] = argspec.port
+        prompt = '{ip}:{port}>'.format(**config['setting'])
+        config.set_prompt(prompt)
 
 
 ###############################################################################
@@ -398,10 +494,6 @@ def argument_parser():
     parent_parser = argparse.ArgumentParser(add_help=False)
     parent_parser.add_argument('-t', '--template', type=str,
                                help='template name', )
-    parent_parser.add_argument('--host', default='localhost',
-                               help='host address')
-    parent_parser.add_argument('--port', type=int, default=502,
-                               help='port')
 
     ###########################################################################
     essential_options_parser = argparse.ArgumentParser(add_help=False)
@@ -468,6 +560,14 @@ def argument_parser():
         epilog='end of description', )
 
     sub_parser = parser.add_subparsers(dest='sub_parser')
+
+    ###########################################################################
+    setting_parser = sub_parser.add_parser('setting', help='setting')
+    setting_parser.add_argument(
+        '--ip', default='localhost', help='host address')
+    setting_parser.add_argument(
+        '--port', type=int, default=502, help='port')
+    setting_parser.set_defaults(func=setting)
 
     ###########################################################################
     exit_parser = sub_parser.add_parser('exit', help='Setting Command')

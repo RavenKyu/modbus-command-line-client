@@ -7,6 +7,7 @@ from modbusclc import get_data_with_template
 from modbusclc import get_default_template
 from modbusclc import make_record
 from modbusclc import DataType
+from modbusclc import Config
 
 DATA = "28 55 6e 69 74 32 33 2d 41 fe fe fc 19 ff ff ff ff ff ff ff ff 43 7e e2 c6 42 0a c3 26 42 7d 7a eb 41 07 0e 38 00 00 00 07"
 DATA = bytes.fromhex(DATA)
@@ -124,6 +125,17 @@ B32_FLOAT            16  4107 0e38            8.440971374511719   32 bit float""
         data.insert(0, header)
         result = tabulate(data, headers="firstrow")
         self.assertEqual(result, expect)
+
+    def test1010_config(self):
+        import tempfile
+        import pathlib
+        expect = {'setting': {'ip': '127.0.0.1', 'port': 502}}
+        temp_config = pathlib.Path(tempfile.mkdtemp()) / \
+                      pathlib.Path('config.yml')
+        config = Config(temp_config.absolute())
+        self.assertDictEqual(config, expect)
+
+
 
 
 if __name__ == '__main__':
