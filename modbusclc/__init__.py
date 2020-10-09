@@ -1,3 +1,4 @@
+import signal
 import yaml
 import socket
 import enum
@@ -12,6 +13,14 @@ from pymodbus.pdu import ModbusExceptions
 from pymodbus.client.sync import ModbusTcpClient as ModbusClient
 from pymodbus.payload import BinaryPayloadBuilder
 from pymodbus.constants import Endian
+
+
+###############################################################################
+def signal_handler(sig, frame):
+    pass
+
+
+signal.signal(signal.SIGINT, signal_handler)
 
 
 ###############################################################################
