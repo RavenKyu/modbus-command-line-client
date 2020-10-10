@@ -13,10 +13,29 @@ import operator
 
 from tabulate import tabulate
 from pymodbus.pdu import ModbusExceptions
-from pymodbus.client.sync import ModbusTcpClient as ModbusClient
-from pymodbus.payload import BinaryPayloadBuilder
+from pymodbus.client.sync import ModbusTcpClient as _ModbusClient
+from pymodbus.payload import BinaryPayloadBuilder, BinaryPayloadDecoder
 from pymodbus.constants import Endian
 from pymodbus import exceptions
+
+
+###############################################################################
+class ModbusClient(_ModbusClient):
+    def __init__(self, host, port, verbose=0):
+        _ModbusClient.__init__(self, host=host, por=port)
+        self._verbose = verbose
+
+    def _recv(self, size):
+        data = _ModbusClient._recv(self, size)
+        if self._verbose:
+            request_response_messages(
+                'recv data', data, f'{self.host}:{self.port}')
+        return data
+
+    def _send(self, request):
+        if self._verbose:
+            request_response_messages('send data', request, get_ip())
+        return _ModbusClient._send(self, request)
 
 
 ###############################################################################
@@ -82,7 +101,7 @@ class Config(dict):
     def __exit__(self, exc_type, exc_val, exc_tb):
         if exc_tb:
             import traceback
-            traceback.print_exception(exc_type,exc_val, exc_tb)
+            traceback.print_exception(exc_type, exc_val, exc_tb)
             return
         self.save()
 
@@ -401,7 +420,7 @@ def read_input_registers(argspec):
 @response_handle
 def read_holding_register(argspec):
     ip, port = CONF.itemgetter('ip', 'port')
-    with ModbusClient(host=ip, port=port) as client:
+    with ModbusClient(host=ip, port=port, verbose=argspec.verbose) as client:
         response = client.read_holding_registers(argspec.address,
                                                  argspec.count)
     return response
@@ -413,7 +432,7 @@ def read_holding_register(argspec):
 @response_handle
 def read_discrete_inputs(argspec):
     ip, port = CONF.itemgetter('ip', 'port')
-    with ModbusClient(host=ip, port=port) as client:
+    with ModbusClient(host=ip, port=port, verbose=argspec.verbose) as client:
         response = client.read_discrete_inputs(argspec.address, argspec.count)
     return response
 
@@ -424,7 +443,7 @@ def read_discrete_inputs(argspec):
 @response_handle
 def read_coils(argspec):
     ip, port = CONF.itemgetter('ip', 'port')
-    with ModbusClient(host=ip, port=port) as client:
+    with ModbusClient(host=ip, port=port, verbose=argspec.verbose) as client:
         response = client.read_coils(argspec.address, argspec.count)
     return response
 
@@ -434,7 +453,7 @@ def read_coils(argspec):
 @response_handle
 def write_single_coil(argspec):
     ip, port = CONF.itemgetter('ip', 'port')
-    with ModbusClient(host=ip, port=port) as client:
+    with ModbusClient(host=ip, port=port, verbose=argspec.verbose) as client:
         response = client.write_coil(argspec.address, argspec.value)
     return response
 
@@ -444,7 +463,7 @@ def write_single_coil(argspec):
 @response_handle
 def write_multiple_coils(argspec):
     ip, port = CONF.itemgetter('ip', 'port')
-    with ModbusClient(host=ip, port=port) as client:
+    with ModbusClient(host=ip, port=port, verbose=argspec.verbose) as client:
         response = client.write_coils(
             argspec.address, list(map(int, argspec.values)))
     return response
@@ -460,7 +479,7 @@ def write_single_register(argspec):
     payload = builder.build()
 
     ip, port = CONF.itemgetter('ip', 'port')
-    with ModbusClient(host=ip, port=port) as client:
+    with ModbusClient(host=ip, port=port, verbose=argspec.verbose) as client:
         response = client.write_register(
             argspec.address, payload[0], skip_encode=True,
             unit=argspec.unit_id)
@@ -477,7 +496,7 @@ def write_multiple_registers(argspec):
     payload = builder.build()
 
     ip, port = CONF.itemgetter('ip', 'port')
-    with ModbusClient(host=ip, port=port) as client:
+    with ModbusClient(host=ip, port=port, verbose=argspec.verbose) as client:
         response = client.write_registers(
             argspec.address, payload, skip_encode=True, unit=argspec.unit_id)
     return response
@@ -502,6 +521,8 @@ def argument_parser():
     essential_options_parser = argparse.ArgumentParser(add_help=False)
     essential_options_parser.add_argument(
         '-i', '--unit-id', type=int, default=0, help='unit id')
+    essential_options_parser.add_argument(
+        '-v', '--verbose', action='count')
 
     ###########################################################################
     single_register_data_type_parser = argparse.ArgumentParser(add_help=False)
