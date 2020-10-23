@@ -11,6 +11,44 @@ def regex_type_0or1(arg_value, pat=re.compile(r"^[0|1| ]*$")):
 
 
 ###############################################################################
+class ActionMultipleType(argparse.Action):
+    def __init__(
+            self, option_strings, dest, const,
+            nargs=None,
+            default=None,
+            type=None,
+            required=False,
+            help=None,
+            metavar=None):
+        super(ActionMultipleType, self).__init__(
+            option_strings=option_strings,
+            dest=dest,
+            nargs=0,
+            const=const,
+            default=default,
+            type=type,
+            required=required,
+            help=help,
+           )
+
+    @staticmethod
+    def _copy_items(items):
+        if items is None:
+            return []
+        if type(items) is list:
+            return items[:]
+        import copy
+        return copy.copy(items)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        items = getattr(namespace, self.dest, None)
+        items = ActionMultipleType._copy_items(items)
+
+        items.append(self.const)
+        setattr(namespace, self.dest, items)
+
+
+###############################################################################
 class ActionMultipleTypeValues(argparse.Action):
     def __init__(
             self, option_strings, dest, const,
@@ -118,6 +156,58 @@ def argument_parser():
         const='add_64bit_float', help='')
 
     ###########################################################################
+    read_register_data_type_parser = argparse.ArgumentParser(
+        add_help=False)
+    read_register_data_type_parser.add_argument(
+        '--b8str', dest='values', action=ActionMultipleType,
+        const='B8_STRING', help='')
+    read_register_data_type_parser.add_argument(
+        '--b16str', dest='values', action=ActionMultipleType,
+        const='B16_STRING', help='')
+    read_register_data_type_parser.add_argument(
+        '--b32str', dest='values', action=ActionMultipleType,
+        const='B32_STRING', help='')
+    read_register_data_type_parser.add_argument(
+        '--b64str', dest='values', action=ActionMultipleType,
+        const='B64_STRING', help='')
+    read_register_data_type_parser.add_argument(
+        '--b8int', dest='values', type=int, action=ActionMultipleType,
+        const='B8_INT')
+    read_register_data_type_parser.add_argument(
+        '--b8uint', dest='values', type=int, action=ActionMultipleType,
+        const='B8_UINT')
+    read_register_data_type_parser.add_argument(
+        '--b16int', dest='values', type=int, action=ActionMultipleType,
+        const='B16_INT')
+    read_register_data_type_parser.add_argument(
+        '--b16uint', dest='values', type=int, action=ActionMultipleType,
+        const='B16_UINT')
+    read_register_data_type_parser.add_argument(
+        '--b32int', dest='values', type=int, action=ActionMultipleType,
+        const='B32_INT', help='')
+    read_register_data_type_parser.add_argument(
+        '--b32uint', dest='values', type=int, action=ActionMultipleType,
+        const='B32_UINT', help='')
+    read_register_data_type_parser.add_argument(
+        '--b64int', dest='values', type=int, action=ActionMultipleType,
+        const='B64_INT', help='')
+    read_register_data_type_parser.add_argument(
+        '--b64uint', dest='values', type=int, action=ActionMultipleType,
+        const='B64_UINT', help='')
+    read_register_data_type_parser.add_argument(
+        '--b16float', dest='values', type=float,
+        action=ActionMultipleType,
+        const='B16_FLOAT', help='')
+    read_register_data_type_parser.add_argument(
+        '--b32float', dest='values', type=float,
+        action=ActionMultipleType,
+        const='B32_FLOAT', help='')
+    read_register_data_type_parser.add_argument(
+        '--b64float', dest='values', type=float,
+        action=ActionMultipleType,
+        const='B64_FLOAT', help='')
+
+    ###########################################################################
     parser = argparse.ArgumentParser(
         prog='',
         description='description',
@@ -168,7 +258,8 @@ def argument_parser():
     read_holding_register_parser = sub_parser.add_parser(
         'read_holding_register', help='Setting Command',
         conflict_handler='resolve',
-        parents=[parent_parser, essential_options_parser])
+        parents=[parent_parser, essential_options_parser,
+                 read_register_data_type_parser])
     read_holding_register_parser.add_argument(
         '-a', '--address', type=int, default=40001, help='address'),
     read_holding_register_parser.add_argument(

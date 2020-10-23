@@ -351,7 +351,14 @@ def print_table(f):
         else:
             data_type = DataType.B16_UINT
 
-        template = get_template(argspec.template)
+        # Directives Data Type
+        values = argspec.values
+        if values and not argspec.template:
+            template = [{'note': '-', 'data_type': x} for x in values]
+        # Template File
+        else:
+            template = get_template(argspec.template)
+
         start_address = argspec.address
         data = get_data_with_template(
             data[1:], template,
