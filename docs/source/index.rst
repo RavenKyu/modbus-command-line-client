@@ -20,10 +20,12 @@ Contents:
    * Templates for data structures
 
 .. code-block:: python
+
    sudo apt install modbusclc
 
 
 .. code-block:: python
+
    pip install modbusclc
 
 .. toctree::
