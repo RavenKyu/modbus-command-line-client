@@ -2,14 +2,13 @@ import signal
 import yaml
 import socket
 import enum
-import argparse
 import struct
 import itertools
 import datetime
 import functools
-import re
 import pathlib
 import operator
+import atexit
 
 from tabulate import tabulate
 from pymodbus.pdu import ModbusExceptions
@@ -20,7 +19,17 @@ from pymodbus import exceptions
 
 
 ###############################################################################
-class ModbusClient(_ModbusClient):
+class Singleton(type):
+    _instances = {}
+
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]
+
+
+###############################################################################
+class ModbusClient(_ModbusClient, metaclass=Singleton):
     def __init__(self, host, port, verbose=0):
         _ModbusClient.__init__(self, host=host, por=port)
         self._verbose = verbose
@@ -33,9 +42,13 @@ class ModbusClient(_ModbusClient):
         return data
 
     def _send(self, request):
+
         if self._verbose:
             request_response_messages('send data', request, get_ip())
         return _ModbusClient._send(self, request)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        return
 
 
 ###############################################################################
@@ -62,7 +75,6 @@ class Config(dict):
     @staticmethod
     def set_prompt(prompt):
         with open('prompt', 'w') as f:
-            print(prompt)
             f.write(prompt)
 
     def new_config_merge(self, config_list: list):
@@ -111,6 +123,18 @@ class Config(dict):
 
 
 CONF = Config()
+
+
+###############################################################################
+def exit_handler():
+    client = ModbusClient(*CONF.itemgetter('ip', 'port'))
+    if client.is_socket_open():
+        client.close()
+    print('** Good Bye **')
+    exit(0)
+
+
+atexit.register(exit_handler)
 
 
 ###############################################################################
@@ -346,6 +370,9 @@ def response_handle(f):
     @functools.wraps(f)
     def func(*args, **kwargs):
         response = f(*args, **kwargs)
+        if response.isError():
+            raise ExceptionResponse(response.message)
+
         data = response.encode()
         if 1 == len(data):
             raise ExceptionResponse(
