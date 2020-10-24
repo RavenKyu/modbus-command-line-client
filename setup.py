@@ -36,4 +36,10 @@ setup(
         "License :: OSI Approved :: MIT License",
     ],
     zip_safe=False,
+    entry_points={
+        'console_scripts': [
+            'modbusclc=modbusclc.__main__:main',
+        ],
+    },
+
 )
