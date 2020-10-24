@@ -1,5 +1,5 @@
 ========
-Examples
+Usages
 ========
 You can get started fast, here you go.
 
@@ -35,6 +35,47 @@ Running ModbusCLC
     # also, you can use docker container after build it.
     $ docker build \-t modbusclc:latest .
     $ docker run -it \-\-rm modbusclc:latest
+
+
+---------------
+Options
+---------------
+All of the function commands has a help command. You can check how to use options supporting.
+
+.. code-block:: bash
+
+    localhost:502> read_holding_register -h
+    usage:  read_holding_register [-h] [-t TEMPLATE] [-i UNIT_ID] [-v] [--b8str] [--b16str] [--b32str] [--b64str] [--b8int] [--b8uint] [--b16int] [--b16uint]
+                                  [--b32int] [--b32uint] [--b64int] [--b64uint] [--b16float] [--b32float] [--b64float] [-a ADDRESS] [-c COUNT]
+
+    optional arguments:
+      -h, --help            show this help message and exit
+      -t TEMPLATE, --template TEMPLATE
+                            template name
+      -i UNIT_ID, --unit-id UNIT_ID
+                            unit id
+      -v, --verbose
+      --b8str
+      --b16str
+      --b32str
+      --b64str
+      --b8int
+      --b8uint
+      --b16int
+      --b16uint
+      --b32int
+      --b32uint
+      --b64int
+      --b64uint
+      --b16float
+      --b32float
+      --b64float
+      -a ADDRESS, --address ADDRESS
+                            address
+      -c COUNT, --count COUNT
+                            number of registers
+    localhost:502>
+
 
 ---------------
 Setting Address
@@ -139,6 +180,23 @@ For converting the data more than one, Use the directives sequentially for the d
        2  B8_INT           40023  85         -123  -
     localhost:502>
 
+-----------------
+Verbose
+-----------------
+It can also display all of the data sending both sides.
+
+.. code-block:: bash
+
+    localhost:502> read_holding_register -c6 -v
+    2020-10-25 00:12:34 | send data | 192.168.200.185 > 00 01 00 00 00 06 00 03 9c 41 00 06
+    2020-10-25 00:12:34 | recv data | localhost:502   > 00 01 00 00 00 0f 00 03
+    2020-10-25 00:12:34 | recv data | localhost:502   > 0c 77 65 6c 63 6f 6d 65 21 41 42 43 44
+      no  data type      address  data      value  note
+    ----  -----------  ---------  ------  -------  ------
+       0  B16_UINT         40001  7765      30565  -
+       1  B16_UINT         40002  6c63      27747  -
+       2  B16_UINT         40003  6f6d      28525  -
+    localhost:502>
 
 
 -----------------

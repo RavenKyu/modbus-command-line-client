@@ -12,7 +12,7 @@ Contents:
    :maxdepth: 2
 
    installing/installing.rst
-   examples/examples_starting.rst
+   usages/usages.rst
 
 * Usages
    * Reading registers and coils
