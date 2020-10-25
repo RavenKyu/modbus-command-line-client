@@ -8,7 +8,7 @@ services:
     container_name: modbus-command-line-client
 
   dummy-modbus-server:
-    image: modbusclc:latest
+    image: dummy-modbus-server:latest
     build:
       context: .
       dockerfile: dummy-modbus-server/Dockerfile
