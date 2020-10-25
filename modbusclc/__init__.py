@@ -72,6 +72,7 @@ class Config(dict):
         dict.__init__(self, **kwargs)
         if not config_filepath:
             config_filepath = Config.CONFIG_FILE.absolute()
+        Config.HOME_PATH.mkdir(parents=True, exist_ok=True)
         self._config_filepath = pathlib.Path(config_filepath)
         if not self.get_config():
             raise ValueError('config error')
@@ -99,7 +100,7 @@ class Config(dict):
         hosts = {'ip': '127.0.0.1', 'port': 502}
         self['setting'] = self.new_config_merge([hosts])
 
-        self._config_filepath.parent.mkdir(exist_ok=True)
+        self._config_filepath.parent.mkdir(parents=True, exist_ok=True)
         self._config_filepath.touch()
         with self._config_filepath.open('w') as f:
             f.write(yaml.dump(self['setting']))
@@ -132,7 +133,15 @@ class Config(dict):
         return operator.itemgetter(*args)(self['setting'])
 
 
+###############################################################################
+def set_prompt(ip, port):
+    prompt = f'{ip}:{port}>'
+    config = Config()
+    config.set_prompt(prompt)
+
+
 CONF = Config()
+set_prompt(**CONF['setting'])
 
 
 ###############################################################################
@@ -516,8 +525,7 @@ def setting(argspec):
     with Config() as config:
         config['setting']['ip'] = argspec.ip
         config['setting']['port'] = argspec.port
-        prompt = '{ip}:{port}>'.format(**config['setting'])
-        config.set_prompt(prompt)
+        set_prompt(**config['setting'])
 
 
 ###############################################################################
@@ -525,4 +533,4 @@ __all__ = ['setting', 'read_coils', 'read_discrete_inputs',
            'read_holding_register',
            'read_input_registers', 'write_single_coil',
            'write_single_register', 'write_multiple_coils',
-           'write_multiple_registers']
+           'write_multiple_registers', 'Config', 'set_prompt']

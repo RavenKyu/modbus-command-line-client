@@ -29,4 +29,4 @@ RUN rm -rf /src
 
 VOLUME ["/root"]
 
-CMD ["python", "-m", "modbusclc"]
+ENTRYPOINT ["modbusclc"]

@@ -272,7 +272,8 @@ def argument_parser():
     read_input_register_parser = sub_parser.add_parser(
         'read_input_register', help='Setting Command',
         conflict_handler='resolve',
-        parents=[parent_parser, essential_options_parser])
+        parents=[parent_parser, essential_options_parser,
+                 read_register_data_type_parser])
     read_input_register_parser.add_argument(
         '-a', '--address', type=int, default=30001, help='address'),
     read_input_register_parser.add_argument(
