@@ -33,8 +33,8 @@ Running ModbusCLC
     # and then,
     $ python -m modbusclc
     # also, you can use docker container after build it.
-    $ docker build \-t modbusclc:latest .
-    $ docker run -it \-\-rm modbusclc:latest
+    $ docker build -t modbusclc:latest .
+    $ docker run -it --rm modbusclc:latest
 
 
 ---------------
@@ -84,7 +84,7 @@ Setting Address
 .. code-block:: bash
 
     # setting the device address you connect to.
-    localhost:502> setting \-\-ip 192.168.10.5 \-\-port 502
+    localhost:502> setting --ip 192.168.10.5 --port 502
     192.168.10.5:502>
 
 --------------------
@@ -179,6 +179,110 @@ For converting the data more than one, Use the directives sequentially for the d
        1  B8_UINT          40023  7b          123  -
        2  B8_INT           40023  85         -123  -
     localhost:502>
+
+-----------------
+Template
+-----------------
+
+This data is not applied any template and data type directives. We can add some data type directives for them. but, too many, every times.
+
+.. code-block:: bash
+
+    localhost:502> read_holding_register -c30
+      no  data type      address  data      value  note
+    ----  -----------  ---------  ------  -------  ------
+       0  B16_UINT         40001  7765      30565  -
+       1  B16_UINT         40002  6c63      27747  -
+       2  B16_UINT         40003  6f6d      28525  -
+       3  B16_UINT         40004  6521      25889  -
+       4  B16_UINT         40005  4142      16706  -
+       5  B16_UINT         40006  4344      17220  -
+       6  B16_UINT         40007  4546      17734  -
+       7  B16_UINT         40008  4748      18248  -
+       8  B16_UINT         40009  ab54      43860  -
+       9  B16_UINT         40010  a98c      43404  -
+      10  B16_UINT         40011  eb1f      60191  -
+      11  B16_UINT         40012  0ad2       2770  -
+      12  B16_UINT         40013  eedd      61149  -
+      13  B16_UINT         40014  ef0b      61195  -
+      14  B16_UINT         40015  8216      33302  -
+
+Using the template option makes it easier.
+
+.. code-block:: bash
+
+    # `-t` : template option
+    # sample : template key name in the template data.
+
+    localhost:502> read_holding_register -c30 -tsample
+      no  data type      address  data                 value                 note
+    ----  -----------  ---------  -------------------  --------------------  -------------------
+       0  B64_STRING       40001  7765 6c63 6f6d 6521  welcome!              64 bit string
+       1  B32_STRING       40005  4142 4344            ABCD                  32 bit string
+       2  B16_STRING       40007  4546                 EF                    16 bit string
+       3  B8_STRING        40008  47                   G                     8 bit string
+       4  B8_STRING        40008  48                   H                     8 bit string
+       5  B64_UINT         40009  ab54 a98c eb1f 0ad2  12345678901234567890  64 bit unsigned int
+       6  B64_INT          40013  eedd ef0b 8216 7eeb  -1234567890123456789  64 bit int
+       7  B32_UINT         40017  4996 02d2            1234567890            32 bit unsigned int
+       8  B32_INT          40019  b669 fd2e            -1234567890           32 bit int
+       9  B16_UINT         40021  3039                 12345                 16 bit unsigned int
+      10  B16_INT          40022  cfc7                 -12345                16 bit int
+      11  B8_UINT          40023  7b                   123                   8 bit unsigned int
+      12  B8_INT           40023  85                   -123                  8 bit int
+      13  B64_FLOAT        40024  419d 6f34 540c a458  123456789.01234567    64 bit float
+      14  B32_FLOAT        40028  4b3c 614e            12345678.0            32 bit float
+      15  B16_FLOAT        40030  64d2                 1234.0                16 bit float
+    localhost:502>
+
+The template option is very useful. It is a yaml format document described data type for the received data.
+The template file is located the directory name below.
+
+.. code-block:: bash
+
+    ~/.config/modbusclc/templates.yml
+
+if the file or directory is not there, after running ModbusCLC once and then check it again.
+
+Here is a sample template used above example.
+
+.. code-block:: yaml
+
+    ---
+    sample:
+      - note: 64 bit string
+        data_type: B64_STRING
+      - note: 32 bit string
+        data_type: B32_STRING
+      - note: 16 bit string
+        data_type: B16_STRING
+      - note: 8 bit string
+        data_type: B8_STRING
+      - note: 8 bit string
+        data_type: B8_STRING
+      - note: 64 bit unsigned int
+        data_type: B64_UINT
+      - note: 64 bit int
+        data_type: B64_INT
+      - note: 32 bit unsigned int
+        data_type: B32_UINT
+      - note: 32 bit int
+        data_type: B32_INT
+      - note: 16 bit unsigned int
+        data_type: B16_UINT
+      - note: 16 bit int
+        data_type: B16_INT
+      - note: 8 bit unsigned int
+        data_type: B8_UINT
+      - note: 8 bit int
+        data_type: B8_INT
+      - note: 64 bit float
+        data_type: B64_FLOAT
+      - note: 32 bit float
+        data_type: B32_FLOAT
+      - note: 16 bit float
+        data_type: B16_FLOAT
+
 
 -----------------
 Verbose

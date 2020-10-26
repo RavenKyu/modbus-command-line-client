@@ -20,5 +20,7 @@ services:
       context: .
       dockerfile: dummy-modbus-server/Dockerfile
     container_name: dummy-modbus-server
+    ports:
+      - 502:502
 
 
