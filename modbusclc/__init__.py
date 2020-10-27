@@ -194,11 +194,92 @@ class DataType(enum.Enum):
 
 
 ###############################################################################
-def get_template(name):
+def get_sample_template():
+    sample = {
+        "sample": [
+            {
+                "note": "64 bit string",
+                "data_type": "B64_STRING"
+            },
+            {
+                "note": "32 bit string",
+                "data_type": "B32_STRING"
+            },
+            {
+                "note": "16 bit string",
+                "data_type": "B16_STRING"
+            },
+            {
+                "note": "8 bit string",
+                "data_type": "B8_STRING"
+            },
+            {
+                "note": "8 bit string",
+                "data_type": "B8_STRING"
+            },
+            {
+                "note": "64 bit unsigned int",
+                "data_type": "B64_UINT"
+            },
+            {
+                "note": "64 bit int",
+                "data_type": "B64_INT"
+            },
+            {
+                "note": "32 bit unsigned int",
+                "data_type": "B32_UINT"
+            },
+            {
+                "note": "32 bit int",
+                "data_type": "B32_INT"
+            },
+            {
+                "note": "16 bit unsigned int",
+                "data_type": "B16_UINT"
+            },
+            {
+                "note": "16 bit int",
+                "data_type": "B16_INT"
+            },
+            {
+                "note": "8 bit unsigned int",
+                "data_type": "B8_UINT"
+            },
+            {
+                "note": "8 bit int",
+                "data_type": "B8_INT"
+            },
+            {
+                "note": "64 bit float",
+                "data_type": "B64_FLOAT"
+            },
+            {
+                "note": "32 bit float",
+                "data_type": "B32_FLOAT"
+            },
+            {
+                "note": "16 bit float",
+                "data_type": "B16_FLOAT"
+            }
+        ]
+    }
+    return sample
+
+
+###############################################################################
+def get_template(name: str):
     if not name:
         return None
+
+    file = CONF.TEMPLATES_FILE
+    if not file.exists():
+        CONF.TEMPLATES_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with open(str(file), 'w') as f:
+            template = get_sample_template()
+            f.write(yaml.dump(template))
     try:
-        with open('templates.yml', 'r') as f:
+        file = CONF.TEMPLATES_FILE
+        with open(str(file), 'r') as f:
             return yaml.safe_load(f)[name]
     except FileNotFoundError:
         print('\n** Error: Template file templates.yml should be '
@@ -410,6 +491,7 @@ def response_handle(f):
 
         data = response.encode()
         return data
+
     return func
 
 
