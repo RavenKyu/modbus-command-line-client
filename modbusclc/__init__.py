@@ -13,6 +13,7 @@ import atexit
 from tabulate import tabulate
 from pymodbus.pdu import ModbusExceptions
 from pymodbus.client.sync import ModbusTcpClient as _ModbusClient
+from pymodbus.client.sync import ModbusRtuFramer, ModbusSocketFramer
 from pymodbus.payload import BinaryPayloadBuilder, BinaryPayloadDecoder
 from pymodbus.constants import Endian
 from pymodbus import exceptions
@@ -31,8 +32,15 @@ class Singleton(type):
 
 ###############################################################################
 class ModbusClient(_ModbusClient, metaclass=Singleton):
-    def __init__(self, host, port):
-        _ModbusClient.__init__(self, host=host, por=port)
+    def __init__(self, host, port, mode):
+        if mode == 'tcp':
+            framer = ModbusSocketFramer
+        elif mode == 'rtu-over-tcp':
+            framer = ModbusRtuFramer
+        else:
+            raise ValueError(f"'{mode}' is not supported.")
+
+        _ModbusClient.__init__(self, host=host, port=port, framer=framer)
         self._verbose = 0
 
     @property
@@ -97,7 +105,7 @@ class Config(dict):
     def set_default_config(self):
         if 'setting' not in self:
             self['setting'] = dict()
-        hosts = {'ip': '127.0.0.1', 'port': 502}
+        hosts = {'ip': '127.0.0.1', 'port': 502, 'mode': 'tcp'}
         self['setting'] = self.new_config_merge([hosts])
 
         self._config_filepath.parent.mkdir(parents=True, exist_ok=True)
@@ -134,8 +142,8 @@ class Config(dict):
 
 
 ###############################################################################
-def set_prompt(ip, port):
-    prompt = f'{ip}:{port}>'
+def set_prompt(ip, port, mode):
+    prompt = f'{ip}:{port}:{mode}>'
     config = Config()
     config.set_prompt(prompt)
 
@@ -500,8 +508,8 @@ def response_handle(f):
 @print_table
 @response_handle
 def read_input_registers(argspec):
-    ip, port = CONF.itemgetter('ip', 'port')
-    with ModbusClient(host=ip, port=port) as client:
+    ip, port, mode = CONF.itemgetter('ip', 'port', 'mode')
+    with ModbusClient(host=ip, port=port, mode=mode) as client:
         client._verbose = argspec.verbose
         response = client.read_input_registers(argspec.address, argspec.count)
     return response
@@ -512,8 +520,8 @@ def read_input_registers(argspec):
 @print_table
 @response_handle
 def read_holding_register(argspec):
-    ip, port = CONF.itemgetter('ip', 'port')
-    with ModbusClient(host=ip, port=port) as client:
+    ip, port, mode = CONF.itemgetter('ip', 'port', 'mode')
+    with ModbusClient(host=ip, port=port, mode=mode) as client:
         client._verbose = argspec.verbose
         response = client.read_holding_registers(argspec.address,
                                                  argspec.count)
@@ -525,8 +533,8 @@ def read_holding_register(argspec):
 @print_table
 @response_handle
 def read_discrete_inputs(argspec):
-    ip, port = CONF.itemgetter('ip', 'port')
-    with ModbusClient(host=ip, port=port) as client:
+    ip, port, mode = CONF.itemgetter('ip', 'port', 'mode')
+    with ModbusClient(host=ip, port=port, mode=mode) as client:
         client._verbose = argspec.verbose
         response = client.read_discrete_inputs(argspec.address, argspec.count)
     return response
@@ -537,8 +545,8 @@ def read_discrete_inputs(argspec):
 @print_table
 @response_handle
 def read_coils(argspec):
-    ip, port = CONF.itemgetter('ip', 'port')
-    with ModbusClient(host=ip, port=port) as client:
+    ip, port, mode = CONF.itemgetter('ip', 'port', 'mode')
+    with ModbusClient(host=ip, port=port, mode=mode) as client:
         client._verbose = argspec.verbose
         response = client.read_coils(argspec.address, argspec.count)
     return response
@@ -548,8 +556,8 @@ def read_coils(argspec):
 @error_handle
 @response_handle
 def write_single_coil(argspec):
-    ip, port = CONF.itemgetter('ip', 'port')
-    with ModbusClient(host=ip, port=port) as client:
+    ip, port, mode = CONF.itemgetter('ip', 'port', 'mode')
+    with ModbusClient(host=ip, port=port, mode=mode) as client:
         client._verbose = argspec.verbose
         response = client.write_coil(argspec.address, argspec.value)
     return response
@@ -559,8 +567,8 @@ def write_single_coil(argspec):
 @error_handle
 @response_handle
 def write_multiple_coils(argspec):
-    ip, port = CONF.itemgetter('ip', 'port')
-    with ModbusClient(host=ip, port=port) as client:
+    ip, port, mode = CONF.itemgetter('ip', 'port', 'mode')
+    with ModbusClient(host=ip, port=port, mode=mode) as client:
         client._verbose = argspec.verbose
         response = client.write_coils(
             argspec.address, list(map(int, argspec.values)))
@@ -576,8 +584,8 @@ def write_single_register(argspec):
         getattr(builder, func)(value)
     payload = builder.build()
 
-    ip, port = CONF.itemgetter('ip', 'port')
-    with ModbusClient(host=ip, port=port) as client:
+    ip, port, mode = CONF.itemgetter('ip', 'port', 'mode')
+    with ModbusClient(host=ip, port=port, mode=mode) as client:
         client._verbose = argspec.verbose
         response = client.write_register(
             argspec.address, payload[0], skip_encode=True,
@@ -594,8 +602,8 @@ def write_multiple_registers(argspec):
         getattr(builder, func)(value)
     payload = builder.build()
 
-    ip, port = CONF.itemgetter('ip', 'port')
-    with ModbusClient(host=ip, port=port) as client:
+    ip, port, mode = CONF.itemgetter('ip', 'port', 'mode')
+    with ModbusClient(host=ip, port=port, mode=mode) as client:
         client._verbose = argspec.verbose
         response = client.write_registers(
             argspec.address, payload, skip_encode=True, unit=argspec.unit_id)
@@ -607,6 +615,7 @@ def setting(argspec):
     with Config() as config:
         config['setting']['ip'] = argspec.ip
         config['setting']['port'] = argspec.port
+        config['setting']['mode'] = argspec.mode
         set_prompt(**config['setting'])
 
 

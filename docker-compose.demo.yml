@@ -23,4 +23,11 @@ services:
     ports:
       - 502:502
 
-
+  dummy-modbus-rtu-over-tcp-server:
+    image: dummy-modbus-rtu-over-tcp-server:latest
+    build:
+      context: .
+      dockerfile: dummy-modbus-rtu-over-tcp-server/Dockerfile
+    container_name: dummy-modbus-rtu-over-tcp-server
+    ports:
+      - 1502:502

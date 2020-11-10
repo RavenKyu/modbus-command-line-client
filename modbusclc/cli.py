@@ -221,6 +221,9 @@ def argument_parser():
         '--ip', default='localhost', help='host address')
     setting_parser.add_argument(
         '--port', type=int, default=502, help='port')
+    setting_parser.add_argument(
+        '--mode', type=str, choices=['tcp', 'rtu-over-tcp'],
+        default='tcp', help='protocol')
     setting_parser.set_defaults(func=setting)
 
     ###########################################################################
