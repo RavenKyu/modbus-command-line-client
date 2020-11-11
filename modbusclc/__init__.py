@@ -617,6 +617,7 @@ def setting(argspec):
         config['setting']['port'] = argspec.port
         config['setting']['mode'] = argspec.mode
         set_prompt(**config['setting'])
+    Singleton._instances = {}
 
 
 ###############################################################################
