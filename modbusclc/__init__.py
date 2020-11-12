@@ -154,7 +154,7 @@ set_prompt(**CONF['setting'])
 
 ###############################################################################
 def exit_handler():
-    client = ModbusClient(*CONF.itemgetter('ip', 'port'))
+    client = ModbusClient(*CONF.itemgetter('ip', 'port', 'mode'))
     if client.is_socket_open():
         client.close()
     print('** Good Bye **')
