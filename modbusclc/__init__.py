@@ -10,6 +10,7 @@ import pathlib
 import operator
 import atexit
 
+from sys import exit
 from tabulate import tabulate
 from pymodbus.pdu import ModbusExceptions
 from pymodbus.client.sync import ModbusTcpClient as _ModbusClient
