@@ -512,7 +512,10 @@ def read_input_registers(argspec):
     ip, port, mode = CONF.itemgetter('ip', 'port', 'mode')
     with ModbusClient(host=ip, port=port, mode=mode) as client:
         client._verbose = argspec.verbose
-        response = client.read_input_registers(argspec.address, argspec.count)
+        response = client.read_input_registers(
+            argspec.address,
+            argspec.count,
+            unit=argspec.unit_id)
     return response
 
 
@@ -524,8 +527,10 @@ def read_holding_register(argspec):
     ip, port, mode = CONF.itemgetter('ip', 'port', 'mode')
     with ModbusClient(host=ip, port=port, mode=mode) as client:
         client._verbose = argspec.verbose
-        response = client.read_holding_registers(argspec.address,
-                                                 argspec.count)
+        response = client.read_holding_registers(
+            argspec.address,
+            argspec.count,
+            unit=argspec.unit_id)
     return response
 
 
@@ -537,7 +542,10 @@ def read_discrete_inputs(argspec):
     ip, port, mode = CONF.itemgetter('ip', 'port', 'mode')
     with ModbusClient(host=ip, port=port, mode=mode) as client:
         client._verbose = argspec.verbose
-        response = client.read_discrete_inputs(argspec.address, argspec.count)
+        response = client.read_discrete_inputs(
+            argspec.address,
+            argspec.count,
+            unit=argspec.unit_id)
     return response
 
 
@@ -549,7 +557,10 @@ def read_coils(argspec):
     ip, port, mode = CONF.itemgetter('ip', 'port', 'mode')
     with ModbusClient(host=ip, port=port, mode=mode) as client:
         client._verbose = argspec.verbose
-        response = client.read_coils(argspec.address, argspec.count)
+        response = client.read_coils(
+            argspec.address,
+            argspec.count,
+            unit=argspec.unit_id)
     return response
 
 
@@ -560,7 +571,10 @@ def write_single_coil(argspec):
     ip, port, mode = CONF.itemgetter('ip', 'port', 'mode')
     with ModbusClient(host=ip, port=port, mode=mode) as client:
         client._verbose = argspec.verbose
-        response = client.write_coil(argspec.address, argspec.value)
+        response = client.write_coil(
+            argspec.address,
+            argspec.value,
+            unit=argspec.unit_id)
     return response
 
 
@@ -572,7 +586,9 @@ def write_multiple_coils(argspec):
     with ModbusClient(host=ip, port=port, mode=mode) as client:
         client._verbose = argspec.verbose
         response = client.write_coils(
-            argspec.address, list(map(int, argspec.values)))
+            argspec.address,
+            list(map(int, argspec.values)),
+            unit=argspec.unit_id)
     return response
 
 
@@ -607,7 +623,10 @@ def write_multiple_registers(argspec):
     with ModbusClient(host=ip, port=port, mode=mode) as client:
         client._verbose = argspec.verbose
         response = client.write_registers(
-            argspec.address, payload, skip_encode=True, unit=argspec.unit_id)
+            argspec.address,
+            payload,
+            skip_encode=True,
+            unit=argspec.unit_id)
     return response
 
 
